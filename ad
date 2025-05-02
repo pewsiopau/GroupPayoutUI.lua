@@ -1,33 +1,182 @@
-let captchaCode = "";
+-- Roblox CAPTCHA System (LocalScript)
+local Players = game:GetService("Players")
+local player = Players.LocalPlayer
+local playerGui = player:WaitForChild("PlayerGui")
 
-function generateCaptcha() {
-  const canvas = document.getElementById('captcha');
-  const ctx = canvas.getContext('2d');
-  ctx.clearRect(0, 0, canvas.width, canvas.height);
+-- CAPTCHA UI Setup
+local captchaUI = Instance.new("ScreenGui")
+captchaUI.Name = "CaptchaUI"
+captchaUI.ResetOnSpawn = false
 
-  const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890';
-  captchaCode = '';
-  for (let i = 0; i < 6; i++) {
-    captchaCode += chars.charAt(Math.floor(Math.random() * chars.length));
-  }
+-- Main Frame
+local mainFrame = Instance.new("Frame")
+mainFrame.Name = "MainFrame"
+mainFrame.Size = UDim2.new(0, 350, 0, 250)
+mainFrame.Position = UDim2.new(0.5, -175, 0.5, -125)
+mainFrame.AnchorPoint = Vector2.new(0.5, 0.5)
+mainFrame.BackgroundColor3 = Color3.fromRGB(36, 38, 43)
+mainFrame.BorderSizePixel = 0
 
-  ctx.font = '30px Arial';
-  ctx.fillStyle = '#0f0';
-  ctx.fillText(captchaCode, 10, 35);
-}
+-- Title
+local title = Instance.new("TextLabel")
+title.Name = "Title"
+title.Size = UDim2.new(1, 0, 0, 40)
+title.Position = UDim2.new(0, 0, 0, 10)
+title.BackgroundTransparency = 1
+title.Text = "VERIFY YOU'RE HUMAN"
+title.Font = Enum.Font.GothamBold
+title.TextColor3 = Color3.fromRGB(255, 255, 255)
+title.TextSize = 18
 
-function validateCaptcha() {
-  const input = document.getElementById('captchaInput').value;
-  const msg = document.getElementById('resultMsg');
-  if (input.toUpperCase() === captchaCode) {
-    msg.innerText = "✅ CAPTCHA Passed!";
-    msg.style.color = "lime";
-  } else {
-    msg.innerText = "❌ Wrong CAPTCHA, try again.";
-    msg.style.color = "red";
-    generateCaptcha(); // regenerate new one
-  }
-}
+-- CAPTCHA Display (with distortion)
+local captchaDisplay = Instance.new("Frame")
+captchaDisplay.Name = "CaptchaDisplay"
+captchaDisplay.Size = UDim2.new(0.8, 0, 0, 60)
+captchaDisplay.Position = UDim2.new(0.1, 0, 0.3, 0)
+captchaDisplay.BackgroundColor3 = Color3.fromRGB(50, 52, 58)
+captchaDisplay.BorderSizePixel = 0
 
-// Generate on page load
-window.onload = generateCaptcha;
+-- CAPTCHA Text (randomly distorted)
+local captchaText = Instance.new("TextLabel")
+captchaText.Name = "CaptchaText"
+captchaText.Size = UDim2.new(1, 0, 1, 0)
+captchaText.BackgroundTransparency = 1
+captchaText.Font = Enum.Font.SourceSansBold
+captchaText.TextColor3 = Color3.fromRGB(255, 255, 255)
+captchaText.TextSize = 24
+captchaText.TextScaled = true
+
+-- Input Box
+local inputBox = Instance.new("TextBox")
+inputBox.Name = "InputBox"
+inputBox.Size = UDim2.new(0.8, 0, 0, 40)
+inputBox.Position = UDim2.new(0.1, 0, 0.6, 0)
+inputBox.BackgroundColor3 = Color3.fromRGB(50, 52, 58)
+inputBox.BorderSizePixel = 0
+inputBox.PlaceholderText = "Enter CAPTCHA"
+inputBox.Font = Enum.Font.Gotham
+inputBox.TextColor3 = Color3.fromRGB(255, 255, 255)
+inputBox.TextSize = 16
+
+-- Submit Button
+local submitButton = Instance.new("TextButton")
+submitButton.Name = "SubmitButton"
+submitButton.Size = UDim2.new(0.4, 0, 0, 40)
+submitButton.Position = UDim2.new(0.3, 0, 0.8, 0)
+submitButton.BackgroundColor3 = Color3.fromRGB(0, 162, 255)
+submitButton.BorderSizePixel = 0
+submitButton.Font = Enum.Font.GothamBold
+submitButton.Text = "VERIFY"
+submitButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+submitButton.TextSize = 16
+
+-- Refresh Button
+local refreshButton = Instance.new("ImageButton")
+refreshButton.Name = "RefreshButton"
+refreshButton.Size = UDim2.new(0, 30, 0, 30)
+refreshButton.Position = UDim2.new(0.85, 0, 0.3, 15)
+refreshButton.BackgroundTransparency = 1
+refreshButton.Image = "rbxassetid://3926305904"
+refreshButton.ImageRectOffset = Vector2.new(964, 324)
+refreshButton.ImageRectSize = Vector2.new(36, 36)
+
+-- Status Message
+local statusMessage = Instance.new("TextLabel")
+statusMessage.Name = "StatusMessage"
+statusMessage.Size = UDim2.new(0.8, 0, 0, 20)
+statusMessage.Position = UDim2.new(0.1, 0, 0.7, 0)
+statusMessage.BackgroundTransparency = 1
+statusMessage.Font = Enum.Font.Gotham
+statusMessage.TextSize = 14
+statusMessage.TextColor3 = Color3.fromRGB(255, 50, 50)
+statusMessage.Visible = false
+
+-- Assemble UI
+captchaText.Parent = captchaDisplay
+captchaDisplay.Parent = mainFrame
+title.Parent = mainFrame
+inputBox.Parent = mainFrame
+submitButton.Parent = mainFrame
+refreshButton.Parent = mainFrame
+statusMessage.Parent = mainFrame
+mainFrame.Parent = captchaUI
+captchaUI.Parent = playerGui
+
+-- CAPTCHA Logic
+local currentCaptcha = ""
+
+-- Generate random CAPTCHA (6 alphanumeric characters)
+local function generateCaptcha()
+    local chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789" -- Exclude easily confused chars
+    local captcha = ""
+    for i = 1, 6 do
+        local rand = math.random(1, #chars)
+        captcha = captcha .. string.sub(chars, rand, rand)
+    end
+    return captcha
+end
+
+-- Apply visual distortion to CAPTCHA text
+local function distortCaptcha(textLabel)
+    textLabel.Text = currentCaptcha
+    
+    -- Random rotation and position offsets for each character
+    for i = 1, #currentCaptcha do
+        local charLabel = Instance.new("TextLabel")
+        charLabel.Name = "Char_"..i
+        charLabel.Size = UDim2.new(0, 20, 1, 0)
+        charLabel.Position = UDim2.new((i-1)/#currentCaptcha, math.random(-5, 5), 0, math.random(-5, 5))
+        charLabel.BackgroundTransparency = 1
+        charLabel.Text = string.sub(currentCaptcha, i, i)
+        charLabel.Font = Enum.Font.SourceSansBold
+        charLabel.TextColor3 = Color3.new(1, 1, 1)
+        charLabel.TextSize = 24
+        charLabel.Rotation = math.random(-15, 15)
+        charLabel.Parent = textLabel
+    end
+end
+
+-- Refresh CAPTCHA
+local function refreshCaptcha()
+    -- Clear previous characters
+    for _, child in ipairs(captchaText:GetChildren()) do
+        child:Destroy()
+    end
+    
+    -- Generate new CAPTCHA
+    currentCaptcha = generateCaptcha()
+    distortCaptcha(captchaText)
+    inputBox.Text = ""
+    statusMessage.Visible = false
+end
+
+-- Initial CAPTCHA generation
+refreshCaptcha()
+
+-- Submit Button Logic
+submitButton.MouseButton1Click:Connect(function()
+    local userInput = string.upper(inputBox.Text)
+    userInput = string.gsub(userInput, "%s+", "") -- Remove spaces
+    
+    if userInput == currentCaptcha then
+        -- Success
+        statusMessage.Text = "Verification successful!"
+        statusMessage.TextColor3 = Color3.fromRGB(50, 255, 50)
+        statusMessage.Visible = true
+        
+        -- Close CAPTCHA after 2 seconds
+        wait(2)
+        captchaUI:Destroy()
+    else
+        -- Failure
+        statusMessage.Text = "Incorrect CAPTCHA. Try again."
+        statusMessage.TextColor3 = Color3.fromRGB(255, 50, 50)
+        statusMessage.Visible = true
+        refreshCaptcha()
+    end
+end)
+
+-- Refresh Button Logic
+refreshButton.MouseButton1Click:Connect(function()
+    refreshCaptcha()
+end)
