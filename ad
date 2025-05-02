@@ -1,66 +1,33 @@
-import React, { useState } from 'react';
-import { loadCaptchaEnginge, LoadCanvasTemplate, validateCaptcha } from 'react-simple-captcha';
+let captchaCode = "";
 
-interface CaptchaModalProps {
-  isOpen: boolean;
-  onClose: () => void;
-  onSuccess: () => void;
+function generateCaptcha() {
+  const canvas = document.getElementById('captcha');
+  const ctx = canvas.getContext('2d');
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+  const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890';
+  captchaCode = '';
+  for (let i = 0; i < 6; i++) {
+    captchaCode += chars.charAt(Math.floor(Math.random() * chars.length));
+  }
+
+  ctx.font = '30px Arial';
+  ctx.fillStyle = '#0f0';
+  ctx.fillText(captchaCode, 10, 35);
 }
 
-export const CaptchaModal: React.FC<CaptchaModalProps> = ({ isOpen, onClose, onSuccess }) => {
-  const [userCaptcha, setUserCaptcha] = useState('');
-  const [error, setError] = useState('');
+function validateCaptcha() {
+  const input = document.getElementById('captchaInput').value;
+  const msg = document.getElementById('resultMsg');
+  if (input.toUpperCase() === captchaCode) {
+    msg.innerText = "✅ CAPTCHA Passed!";
+    msg.style.color = "lime";
+  } else {
+    msg.innerText = "❌ Wrong CAPTCHA, try again.";
+    msg.style.color = "red";
+    generateCaptcha(); // regenerate new one
+  }
+}
 
-  React.useEffect(() => {
-    if (isOpen) {
-      loadCaptchaEnginge(6);
-      setUserCaptcha('');
-      setError('');
-    }
-  }, [isOpen]);
-
-  const handleSubmit = () => {
-    if (validateCaptcha(userCaptcha)) {
-      onSuccess();
-    } else {
-      setError('Invalid CAPTCHA. Please try again.');
-      loadCaptchaEnginge(6);
-      setUserCaptcha('');
-    }
-  };
-
-  if (!isOpen) return null;
-
-  return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-      <div className="bg-[#2A2A2A] p-6 rounded-lg shadow-xl max-w-md w-full">
-        <h2 className="text-xl font-bold mb-4">Verify CAPTCHA</h2>
-        <div className="mb-4">
-          <LoadCanvasTemplate />
-        </div>
-        <input
-          type="text"
-          value={userCaptcha}
-          onChange={(e) => setUserCaptcha(e.target.value)}
-          className="roblox-input w-full mb-4"
-          placeholder="Enter CAPTCHA text"
-        />
-        {error && <p className="text-red-500 mb-4">{error}</p>}
-        <div className="flex justify-end space-x-3">
-          <button
-            onClick={onClose}
-            className="btn-add-recipient px-4 py-2 rounded"
-          >
-            Cancel
-          </button>
-          <button
-            onClick={handleSubmit}
-            className="btn-distribute px-4 py-2 rounded"
-          >
-            Verify
-          </button>
-        </div>
-      </div>
-    </div>
-  );
-};
+// Generate on page load
+window.onload = generateCaptcha;
