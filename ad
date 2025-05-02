@@ -1,182 +1,198 @@
--- Roblox CAPTCHA System (LocalScript)
-local Players = game:GetService("Players")
-local player = Players.LocalPlayer
-local playerGui = player:WaitForChild("PlayerGui")
+"use client"
 
--- CAPTCHA UI Setup
-local captchaUI = Instance.new("ScreenGui")
-captchaUI.Name = "CaptchaUI"
-captchaUI.ResetOnSpawn = false
+import type React from "react"
 
--- Main Frame
-local mainFrame = Instance.new("Frame")
-mainFrame.Name = "MainFrame"
-mainFrame.Size = UDim2.new(0, 350, 0, 250)
-mainFrame.Position = UDim2.new(0.5, -175, 0.5, -125)
-mainFrame.AnchorPoint = Vector2.new(0.5, 0.5)
-mainFrame.BackgroundColor3 = Color3.fromRGB(36, 38, 43)
-mainFrame.BorderSizePixel = 0
+import { useState, useEffect, useRef } from "react"
+import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { Label } from "@/components/ui/label"
+import { Alert, AlertDescription } from "@/components/ui/alert"
+import { RefreshCw, CheckCircle2, XCircle } from "lucide-react"
+import { generateCaptcha, verifyCaptcha } from "@/lib/captcha-actions"
 
--- Title
-local title = Instance.new("TextLabel")
-title.Name = "Title"
-title.Size = UDim2.new(1, 0, 0, 40)
-title.Position = UDim2.new(0, 0, 0, 10)
-title.BackgroundTransparency = 1
-title.Text = "VERIFY YOU'RE HUMAN"
-title.Font = Enum.Font.GothamBold
-title.TextColor3 = Color3.fromRGB(255, 255, 255)
-title.TextSize = 18
+// CAPTCHA Display Component
+function CaptchaDisplay({ text }: { text: string }) {
+  const canvasRef = useRef<HTMLCanvasElement>(null)
 
--- CAPTCHA Display (with distortion)
-local captchaDisplay = Instance.new("Frame")
-captchaDisplay.Name = "CaptchaDisplay"
-captchaDisplay.Size = UDim2.new(0.8, 0, 0, 60)
-captchaDisplay.Position = UDim2.new(0.1, 0, 0.3, 0)
-captchaDisplay.BackgroundColor3 = Color3.fromRGB(50, 52, 58)
-captchaDisplay.BorderSizePixel = 0
+  useEffect(() => {
+    const canvas = canvasRef.current
+    if (!canvas) return
 
--- CAPTCHA Text (randomly distorted)
-local captchaText = Instance.new("TextLabel")
-captchaText.Name = "CaptchaText"
-captchaText.Size = UDim2.new(1, 0, 1, 0)
-captchaText.BackgroundTransparency = 1
-captchaText.Font = Enum.Font.SourceSansBold
-captchaText.TextColor3 = Color3.fromRGB(255, 255, 255)
-captchaText.TextSize = 24
-captchaText.TextScaled = true
+    const ctx = canvas.getContext("2d")
+    if (!ctx) return
 
--- Input Box
-local inputBox = Instance.new("TextBox")
-inputBox.Name = "InputBox"
-inputBox.Size = UDim2.new(0.8, 0, 0, 40)
-inputBox.Position = UDim2.new(0.1, 0, 0.6, 0)
-inputBox.BackgroundColor3 = Color3.fromRGB(50, 52, 58)
-inputBox.BorderSizePixel = 0
-inputBox.PlaceholderText = "Enter CAPTCHA"
-inputBox.Font = Enum.Font.Gotham
-inputBox.TextColor3 = Color3.fromRGB(255, 255, 255)
-inputBox.TextSize = 16
+    // Clear canvas
+    ctx.clearRect(0, 0, canvas.width, canvas.height)
 
--- Submit Button
-local submitButton = Instance.new("TextButton")
-submitButton.Name = "SubmitButton"
-submitButton.Size = UDim2.new(0.4, 0, 0, 40)
-submitButton.Position = UDim2.new(0.3, 0, 0.8, 0)
-submitButton.BackgroundColor3 = Color3.fromRGB(0, 162, 255)
-submitButton.BorderSizePixel = 0
-submitButton.Font = Enum.Font.GothamBold
-submitButton.Text = "VERIFY"
-submitButton.TextColor3 = Color3.fromRGB(255, 255, 255)
-submitButton.TextSize = 16
+    // Set background
+    ctx.fillStyle = "white"
+    ctx.fillRect(0, 0, canvas.width, canvas.height)
 
--- Refresh Button
-local refreshButton = Instance.new("ImageButton")
-refreshButton.Name = "RefreshButton"
-refreshButton.Size = UDim2.new(0, 30, 0, 30)
-refreshButton.Position = UDim2.new(0.85, 0, 0.3, 15)
-refreshButton.BackgroundTransparency = 1
-refreshButton.Image = "rbxassetid://3926305904"
-refreshButton.ImageRectOffset = Vector2.new(964, 324)
-refreshButton.ImageRectSize = Vector2.new(36, 36)
+    // Add noise (dots)
+    for (let i = 0; i < 100; i++) {
+      ctx.fillStyle = `rgba(${Math.random() * 200}, ${Math.random() * 200}, ${Math.random() * 200}, 0.3)`
+      ctx.beginPath()
+      ctx.arc(Math.random() * canvas.width, Math.random() * canvas.height, Math.random() * 2, 0, Math.PI * 2)
+      ctx.fill()
+    }
 
--- Status Message
-local statusMessage = Instance.new("TextLabel")
-statusMessage.Name = "StatusMessage"
-statusMessage.Size = UDim2.new(0.8, 0, 0, 20)
-statusMessage.Position = UDim2.new(0.1, 0, 0.7, 0)
-statusMessage.BackgroundTransparency = 1
-statusMessage.Font = Enum.Font.Gotham
-statusMessage.TextSize = 14
-statusMessage.TextColor3 = Color3.fromRGB(255, 50, 50)
-statusMessage.Visible = false
+    // Add lines for noise
+    for (let i = 0; i < 4; i++) {
+      ctx.strokeStyle = `rgba(${Math.random() * 200}, ${Math.random() * 200}, ${Math.random() * 200}, 0.5)`
+      ctx.lineWidth = 1
+      ctx.beginPath()
+      ctx.moveTo(Math.random() * canvas.width, Math.random() * canvas.height)
+      ctx.lineTo(Math.random() * canvas.width, Math.random() * canvas.height)
+      ctx.stroke()
+    }
 
--- Assemble UI
-captchaText.Parent = captchaDisplay
-captchaDisplay.Parent = mainFrame
-title.Parent = mainFrame
-inputBox.Parent = mainFrame
-submitButton.Parent = mainFrame
-refreshButton.Parent = mainFrame
-statusMessage.Parent = mainFrame
-mainFrame.Parent = captchaUI
-captchaUI.Parent = playerGui
+    // Draw text
+    const fontSize = 24
+    ctx.font = `${fontSize}px 'Courier New', monospace`
+    ctx.textBaseline = "middle"
 
--- CAPTCHA Logic
-local currentCaptcha = ""
+    // Draw each character with slight variations
+    const chars = text.split("")
+    const charWidth = canvas.width / (chars.length + 1)
 
--- Generate random CAPTCHA (6 alphanumeric characters)
-local function generateCaptcha()
-    local chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789" -- Exclude easily confused chars
-    local captcha = ""
-    for i = 1, 6 do
-        local rand = math.random(1, #chars)
-        captcha = captcha .. string.sub(chars, rand, rand)
-    end
-    return captcha
-end
+    chars.forEach((char, i) => {
+      const x = charWidth * (i + 0.5)
+      const y = canvas.height / 2 + (Math.random() * 10 - 5)
+      const rotation = Math.random() * 0.4 - 0.2
 
--- Apply visual distortion to CAPTCHA text
-local function distortCaptcha(textLabel)
-    textLabel.Text = currentCaptcha
-    
-    -- Random rotation and position offsets for each character
-    for i = 1, #currentCaptcha do
-        local charLabel = Instance.new("TextLabel")
-        charLabel.Name = "Char_"..i
-        charLabel.Size = UDim2.new(0, 20, 1, 0)
-        charLabel.Position = UDim2.new((i-1)/#currentCaptcha, math.random(-5, 5), 0, math.random(-5, 5))
-        charLabel.BackgroundTransparency = 1
-        charLabel.Text = string.sub(currentCaptcha, i, i)
-        charLabel.Font = Enum.Font.SourceSansBold
-        charLabel.TextColor3 = Color3.new(1, 1, 1)
-        charLabel.TextSize = 24
-        charLabel.Rotation = math.random(-15, 15)
-        charLabel.Parent = textLabel
-    end
-end
+      ctx.save()
+      ctx.translate(x, y)
+      ctx.rotate(rotation)
+      ctx.fillStyle = `rgb(${Math.floor(Math.random() * 80)}, ${Math.floor(Math.random() * 80)}, ${Math.floor(Math.random() * 80)})`
+      ctx.fillText(char, -8, 0)
+      ctx.restore()
+    })
+  }, [text])
 
--- Refresh CAPTCHA
-local function refreshCaptcha()
-    -- Clear previous characters
-    for _, child in ipairs(captchaText:GetChildren()) do
-        child:Destroy()
-    end
-    
-    -- Generate new CAPTCHA
-    currentCaptcha = generateCaptcha()
-    distortCaptcha(captchaText)
-    inputBox.Text = ""
-    statusMessage.Visible = false
-end
+  return <canvas ref={canvasRef} width={200} height={80} className="w-full h-auto" aria-label="CAPTCHA image" />
+}
 
--- Initial CAPTCHA generation
-refreshCaptcha()
+// Main Page Component with CAPTCHA Form
+export default function CaptchaPage() {
+  const [captchaText, setCaptchaText] = useState("")
+  const [userInput, setUserInput] = useState("")
+  const [isVerified, setIsVerified] = useState<boolean | null>(null)
+  const [isLoading, setIsLoading] = useState(false)
 
--- Submit Button Logic
-submitButton.MouseButton1Click:Connect(function()
-    local userInput = string.upper(inputBox.Text)
-    userInput = string.gsub(userInput, "%s+", "") -- Remove spaces
-    
-    if userInput == currentCaptcha then
-        -- Success
-        statusMessage.Text = "Verification successful!"
-        statusMessage.TextColor3 = Color3.fromRGB(50, 255, 50)
-        statusMessage.Visible = true
-        
-        -- Close CAPTCHA after 2 seconds
-        wait(2)
-        captchaUI:Destroy()
-    else
-        -- Failure
-        statusMessage.Text = "Incorrect CAPTCHA. Try again."
-        statusMessage.TextColor3 = Color3.fromRGB(255, 50, 50)
-        statusMessage.Visible = true
-        refreshCaptcha()
-    end
-end)
+  const refreshCaptcha = async () => {
+    setIsLoading(true)
+    try {
+      const newCaptcha = await generateCaptcha()
+      setCaptchaText(newCaptcha)
+      setUserInput("")
+      setIsVerified(null)
+    } catch (error) {
+      console.error("Failed to generate CAPTCHA:", error)
+    } finally {
+      setIsLoading(false)
+    }
+  }
 
--- Refresh Button Logic
-refreshButton.MouseButton1Click:Connect(function()
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setIsLoading(true)
+
+    try {
+      const result = await verifyCaptcha(captchaText, userInput)
+      setIsVerified(result)
+
+      if (result) {
+        // If verified, you could proceed with form submission or other actions
+        setTimeout(() => {
+          refreshCaptcha()
+        }, 2000)
+      }
+    } catch (error) {
+      console.error("Verification failed:", error)
+      setIsVerified(false)
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+  useEffect(() => {
     refreshCaptcha()
-end)
+  }, [])
+
+  return (
+    <main className="flex min-h-screen flex-col items-center justify-center p-4 bg-gray-50">
+      <div className="w-full max-w-md space-y-8">
+        <div className="text-center">
+          <h1 className="text-3xl font-bold">CAPTCHA Demo</h1>
+          <p className="mt-2 text-gray-600">A simple implementation of CAPTCHA verification</p>
+        </div>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>Verify you're human</CardTitle>
+            <CardDescription>Enter the characters you see in the image below</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <form onSubmit={handleSubmit} className="space-y-6">
+              <div className="space-y-2">
+                <div className="flex justify-between items-center">
+                  <Label htmlFor="captcha">CAPTCHA</Label>
+                  <Button type="button" variant="ghost" size="sm" onClick={refreshCaptcha} disabled={isLoading}>
+                    <RefreshCw className={`h-4 w-4 ${isLoading ? "animate-spin" : ""}`} />
+                    <span className="sr-only">Refresh CAPTCHA</span>
+                  </Button>
+                </div>
+
+                <div className="border rounded-md p-4 bg-white">
+                  {captchaText ? (
+                    <CaptchaDisplay text={captchaText} />
+                  ) : (
+                    <div className="h-16 flex items-center justify-center">
+                      <p className="text-gray-400">Loading CAPTCHA...</p>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="captcha-input">Enter the text above</Label>
+                <Input
+                  id="captcha-input"
+                  value={userInput}
+                  onChange={(e) => setUserInput(e.target.value)}
+                  placeholder="Enter CAPTCHA text"
+                  disabled={isLoading}
+                  className="w-full"
+                />
+              </div>
+
+              {isVerified !== null && (
+                <Alert
+                  className={
+                    isVerified ? "bg-green-50 text-green-800 border-green-200" : "bg-red-50 text-red-800 border-red-200"
+                  }
+                >
+                  <div className="flex items-center gap-2">
+                    {isVerified ? (
+                      <CheckCircle2 className="h-4 w-4 text-green-600" />
+                    ) : (
+                      <XCircle className="h-4 w-4 text-red-600" />
+                    )}
+                    <AlertDescription>
+                      {isVerified ? "CAPTCHA verified successfully!" : "Incorrect CAPTCHA. Please try again."}
+                    </AlertDescription>
+                  </div>
+                </Alert>
+              )}
+
+              <Button type="submit" className="w-full" disabled={!captchaText || !userInput || isLoading}>
+                Verify
+              </Button>
+            </form>
+          </CardContent>
+        </Card>
+      </div>
+    </main>
+  )
+}
