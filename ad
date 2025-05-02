@@ -1,13 +1,66 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8" />
-  <title>Group Payout UI</title>
-  <link rel="stylesheet" href="style.css">
-</head>
-<body>
-  <h1>Fake Group Payout</h1>
-  <button id="payBtn">Distribute</button>
-  <script src="script.js"></script>
-</body>
-</html>
+import React, { useState } from 'react';
+import { loadCaptchaEnginge, LoadCanvasTemplate, validateCaptcha } from 'react-simple-captcha';
+
+interface CaptchaModalProps {
+  isOpen: boolean;
+  onClose: () => void;
+  onSuccess: () => void;
+}
+
+export const CaptchaModal: React.FC<CaptchaModalProps> = ({ isOpen, onClose, onSuccess }) => {
+  const [userCaptcha, setUserCaptcha] = useState('');
+  const [error, setError] = useState('');
+
+  React.useEffect(() => {
+    if (isOpen) {
+      loadCaptchaEnginge(6);
+      setUserCaptcha('');
+      setError('');
+    }
+  }, [isOpen]);
+
+  const handleSubmit = () => {
+    if (validateCaptcha(userCaptcha)) {
+      onSuccess();
+    } else {
+      setError('Invalid CAPTCHA. Please try again.');
+      loadCaptchaEnginge(6);
+      setUserCaptcha('');
+    }
+  };
+
+  if (!isOpen) return null;
+
+  return (
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+      <div className="bg-[#2A2A2A] p-6 rounded-lg shadow-xl max-w-md w-full">
+        <h2 className="text-xl font-bold mb-4">Verify CAPTCHA</h2>
+        <div className="mb-4">
+          <LoadCanvasTemplate />
+        </div>
+        <input
+          type="text"
+          value={userCaptcha}
+          onChange={(e) => setUserCaptcha(e.target.value)}
+          className="roblox-input w-full mb-4"
+          placeholder="Enter CAPTCHA text"
+        />
+        {error && <p className="text-red-500 mb-4">{error}</p>}
+        <div className="flex justify-end space-x-3">
+          <button
+            onClick={onClose}
+            className="btn-add-recipient px-4 py-2 rounded"
+          >
+            Cancel
+          </button>
+          <button
+            onClick={handleSubmit}
+            className="btn-distribute px-4 py-2 rounded"
+          >
+            Verify
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};
